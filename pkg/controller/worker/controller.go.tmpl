@@ -1,0 +1,33 @@
+package worker
+
+import (
+	"net/http"
+
+	"example.com/my-project/pkg/render"
+	workerpkg "example.com/my-project/pkg/worker/example"
+)
+
+type Controller struct {
+	worker   *workerpkg.Worker
+	renderer *render.Renderer
+}
+
+func New(worker *workerpkg.Worker, renderer *render.Renderer) *Controller {
+	return &Controller{worker: worker, renderer: renderer}
+}
+
+func (c *Controller) HandleHealth() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = c.renderer.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+}
+
+func (c *Controller) HandleRun() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := c.worker.Run(r.Context()); err != nil {
+			_ = c.renderer.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		_ = c.renderer.JSON(w, http.StatusOK, map[string]string{"status": "done"})
+	})
+}

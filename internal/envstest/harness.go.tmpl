@@ -1,0 +1,37 @@
+package envstest
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"example.com/my-project/pkg/database"
+	"example.com/my-project/pkg/render"
+)
+
+type Harness struct {
+	Database *database.Database
+	Renderer *render.Renderer
+}
+
+func New(tb testing.TB) *Harness {
+	tb.Helper()
+
+	db, err := database.Open(context.Background(), "test://database")
+	if err != nil {
+		tb.Fatalf("open test database: %v", err)
+	}
+	tb.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	return &Harness{
+		Database: db,
+		Renderer: render.New(true),
+	}
+}
+
+func NewRequest(method, path string) *http.Request {
+	return httptest.NewRequest(method, path, nil)
+}

@@ -1,0 +1,16 @@
+variable "project" {
+	type        = string
+	description = "Google Cloud project ID"
+}
+
+variable "region" {
+	type        = string
+	description = "Primary deployment region"
+	default     = "us-central1"
+}
+
+variable "service_environment" {
+	type        = map(map(string))
+	description = "Optional shared and per-service environment overrides"
+	default     = {}
+}

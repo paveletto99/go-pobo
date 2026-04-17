@@ -1,0 +1,33 @@
+package admin
+
+import (
+	"net/http"
+
+	"example.com/my-project/pkg/database"
+	"example.com/my-project/pkg/render"
+)
+
+type Controller struct {
+	db       *database.Database
+	renderer *render.Renderer
+}
+
+func New(db *database.Database, renderer *render.Renderer) *Controller {
+	return &Controller{db: db, renderer: renderer}
+}
+
+func (c *Controller) HandleHealth() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := c.db.Ping(r.Context()); err != nil {
+			_ = c.renderer.JSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unhealthy"})
+			return
+		}
+		_ = c.renderer.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+}
+
+func (c *Controller) HandleRunTask() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = c.renderer.JSON(w, http.StatusAccepted, map[string]string{"status": "queued"})
+	})
+}

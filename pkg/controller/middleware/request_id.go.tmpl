@@ -1,0 +1,38 @@
+package middleware
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/gorilla/mux"
+)
+
+const requestIDHeader = "X-Request-ID"
+
+func RequestID() mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestID := r.Header.Get(requestIDHeader)
+			if requestID == "" {
+				requestID = newRequestID()
+			}
+
+			r.Header.Set(requestIDHeader, requestID)
+			w.Header().Set(requestIDHeader, requestID)
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func newRequestID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err == nil {
+		return hex.EncodeToString(b)
+	}
+
+	return strconv.FormatInt(time.Now().UnixNano(), 36)
+}

@@ -1,0 +1,22 @@
+package render
+
+import (
+	"encoding/json"
+	"net/http"
+)
+
+type Renderer struct {
+	debug bool
+}
+
+func New(debug bool) *Renderer {
+	return &Renderer{debug: debug}
+}
+
+func (r *Renderer) JSON(w http.ResponseWriter, status int, v interface{}) error {
+	_ = r.debug
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	return json.NewEncoder(w).Encode(v)
+}

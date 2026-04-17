@@ -1,0 +1,34 @@
+resource "google_service_account" "server" {
+	project      = var.project
+	account_id   = "my-project-server-sa"
+	display_name = "My project server"
+}
+
+resource "google_cloud_run_v2_service" "server" {
+	name     = "server"
+	location = var.region
+
+	template {
+		service_account = google_service_account.server.email
+
+		containers {
+			image = "us-docker.pkg.dev/${var.project}/applications/server:latest"
+
+			dynamic "env" {
+				for_each = merge(
+					local.common_config,
+					local.server_config,
+					lookup(var.service_environment, "_all", {}),
+					lookup(var.service_environment, "server", {}),
+				)
+
+				content {
+					name  = env.key
+					value = env.value
+				}
+			}
+		}
+	}
+
+	// Add depends_on, IAM bindings, secrets, and ingress settings here.
+}

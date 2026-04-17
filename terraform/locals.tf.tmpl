@@ -1,0 +1,10 @@
+locals {
+	common_config = {
+		PROJECT_ID = var.project
+		REGION     = var.region
+	}
+
+	server_config = {
+		PORT = "8080"
+	}
+}

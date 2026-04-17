@@ -1,0 +1,42 @@
+package config
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/sethvargo/go-envconfig"
+)
+
+type ServerConfig struct {
+	Port            string        `env:"PORT, default=8080"`
+	DevMode         bool          `env:"DEV_MODE, default=false"`
+	DatabaseURL     string        `env:"DATABASE_URL, required"`
+	ShutdownTimeout time.Duration `env:"SHUTDOWN_TIMEOUT, default=10s"`
+}
+
+type Duration = time.Duration
+
+func NewServerConfig(ctx context.Context) (*ServerConfig, error) {
+	var cfg ServerConfig
+	if err := envconfig.Process(ctx, &cfg); err != nil {
+		return nil, fmt.Errorf("process env: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("validate config: %w", err)
+	}
+	return &cfg, nil
+}
+
+func (c *ServerConfig) Validate() error {
+	if c.Port == "" {
+		return fmt.Errorf("port is required")
+	}
+	if c.DatabaseURL == "" {
+		return fmt.Errorf("database url is required")
+	}
+	if c.ShutdownTimeout <= 0 {
+		return fmt.Errorf("shutdown timeout must be positive")
+	}
+	return nil
+}

@@ -1,0 +1,19 @@
+package example
+
+import (
+	"context"
+
+	"example.com/my-project/pkg/database"
+)
+
+type Worker struct {
+	db *database.Database
+}
+
+func New(db *database.Database) *Worker {
+	return &Worker{db: db}
+}
+
+func (w *Worker) Run(ctx context.Context) error {
+	return w.db.Ping(ctx)
+}

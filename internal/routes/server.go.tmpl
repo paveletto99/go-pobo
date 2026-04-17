@@ -1,0 +1,32 @@
+package routes
+
+import (
+	"context"
+	"net/http"
+
+	"example.com/my-project/pkg/config"
+	controllerexample "example.com/my-project/pkg/controller/example"
+	"example.com/my-project/pkg/controller/middleware"
+	"example.com/my-project/pkg/database"
+	"example.com/my-project/pkg/render"
+	"github.com/gorilla/mux"
+)
+
+func Server(ctx context.Context, cfg *config.ServerConfig, db *database.Database, renderer *render.Renderer) (http.Handler, error) {
+	_ = ctx
+	_ = cfg
+
+	r := mux.NewRouter()
+
+	r.Use(middleware.RequestID())
+
+	// Install trace, logger, recovery, auth, and rate-limit middleware here.
+	controller := controllerexample.New(db, renderer)
+
+	r.Handle("/health", controller.HandleHealth()).Methods(http.MethodGet)
+
+	api := r.PathPrefix("/api").Subrouter()
+	api.Handle("/example", controller.HandleShow()).Methods(http.MethodGet)
+
+	return r, nil
+}

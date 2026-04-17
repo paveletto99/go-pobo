@@ -1,0 +1,39 @@
+package config
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/sethvargo/go-envconfig"
+)
+
+type AdminAPIConfig struct {
+	Port            string `env:"ADMIN_API_PORT, default=8081"`
+	DevMode         bool   `env:"DEV_MODE, default=false"`
+	DatabaseURL     string `env:"DATABASE_URL, required"`
+	ShutdownTimeout Duration `env:"SHUTDOWN_TIMEOUT, default=10s"`
+}
+
+func NewAdminAPIConfig(ctx context.Context) (*AdminAPIConfig, error) {
+	var cfg AdminAPIConfig
+	if err := envconfig.Process(ctx, &cfg); err != nil {
+		return nil, fmt.Errorf("process admin api env: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("validate admin api config: %w", err)
+	}
+	return &cfg, nil
+}
+
+func (c *AdminAPIConfig) Validate() error {
+	if c.Port == "" {
+		return fmt.Errorf("admin api port is required")
+	}
+	if c.DatabaseURL == "" {
+		return fmt.Errorf("database url is required")
+	}
+	if c.ShutdownTimeout <= 0 {
+		return fmt.Errorf("shutdown timeout must be positive")
+	}
+	return nil
+}

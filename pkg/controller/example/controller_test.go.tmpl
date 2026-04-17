@@ -1,0 +1,23 @@
+package example
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"example.com/my-project/internal/envstest"
+)
+
+func TestHandleHealth(t *testing.T) {
+	h := envstest.New(t)
+	controller := New(h.Database, h.Renderer)
+
+	req := envstest.NewRequest(http.MethodGet, "/health")
+	rw := httptest.NewRecorder()
+
+	controller.HandleHealth().ServeHTTP(rw, req)
+
+	if rw.Code != http.StatusOK {
+		t.Fatalf("got %d, want %d", rw.Code, http.StatusOK)
+	}
+}
