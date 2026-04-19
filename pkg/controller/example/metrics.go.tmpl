@@ -1,0 +1,22 @@
+package example
+
+import (
+	"expvar"
+	"time"
+
+	"example.com/my-project/pkg/observability"
+)
+
+var (
+	exampleRequestCount  = expvar.NewInt(observability.MetricRoot + "_example_requests_total")
+	exampleRequestErrors = expvar.NewInt(observability.MetricRoot + "_example_request_errors_total")
+	exampleLatencyMs     = expvar.NewMap(observability.MetricRoot + "_example_request_latency_ms")
+)
+
+func RecordExampleRequest(latency time.Duration, result string) {
+	exampleRequestCount.Add(1)
+	exampleLatencyMs.Add(result, latency.Milliseconds())
+	if result != "ok" {
+		exampleRequestErrors.Add(1)
+	}
+}

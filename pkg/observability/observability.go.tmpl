@@ -1,0 +1,33 @@
+package observability
+
+import (
+	"context"
+	"time"
+)
+
+const MetricRoot = "my-project"
+
+type contextKey string
+
+const (
+	serviceNameKey  contextKey = "service_name"
+	requestStartKey contextKey = "request_start"
+)
+
+func WithServiceName(ctx context.Context, service string) context.Context {
+	return context.WithValue(ctx, serviceNameKey, service)
+}
+
+func ServiceNameFromContext(ctx context.Context) string {
+	value, _ := ctx.Value(serviceNameKey).(string)
+	return value
+}
+
+func WithRequestStart(ctx context.Context, started time.Time) context.Context {
+	return context.WithValue(ctx, requestStartKey, started)
+}
+
+func RequestStartFromContext(ctx context.Context) time.Time {
+	value, _ := ctx.Value(requestStartKey).(time.Time)
+	return value
+}

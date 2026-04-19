@@ -2,8 +2,11 @@ package example
 
 import (
 	"net/http"
+	"time"
 
+	appcontroller "example.com/my-project/pkg/controller"
 	"example.com/my-project/pkg/database"
+	"example.com/my-project/pkg/pagination"
 	"example.com/my-project/pkg/render"
 )
 
@@ -28,6 +31,40 @@ func (c *Controller) HandleHealth() http.Handler {
 
 func (c *Controller) HandleShow() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = c.renderer.JSON(w, http.StatusOK, map[string]string{"message": "fill in your handler here"})
+		started := time.Now()
+		views := 1
+
+		if session := appcontroller.SessionFromContext(r.Context()); session != nil {
+			if current, ok := session.Values["views"].(int); ok {
+				views = current + 1
+			}
+			session.Values["views"] = views
+		}
+
+		RecordExampleRequest(time.Since(started), "ok")
+		_ = c.renderer.JSON(w, http.StatusOK, map[string]interface{}{
+			"message": "fill in your handler here",
+			"views":   views,
+		})
+	})
+}
+
+func (c *Controller) HandleList() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+
+		params, err := pagination.FromRequest(r)
+		if err != nil {
+			RecordExampleRequest(time.Since(started), "bad_request")
+			_ = c.renderer.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+
+		RecordExampleRequest(time.Since(started), "ok")
+		_ = c.renderer.JSON(w, http.StatusOK, map[string]interface{}{
+			"items": []string{"first", "second"},
+			"page":  params.Page,
+			"limit": params.Limit,
+		})
 	})
 }

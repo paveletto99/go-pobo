@@ -1,0 +1,21 @@
+package middleware
+
+import (
+	"net/http"
+
+	"example.com/my-project/pkg/controller"
+	"example.com/my-project/pkg/rbac"
+	"github.com/gorilla/mux"
+)
+
+func RequirePermission(permission rbac.Permission) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !rbac.Can(controller.PermissionsFromContext(r.Context()), permission) {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}

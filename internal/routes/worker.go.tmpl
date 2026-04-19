@@ -19,8 +19,9 @@ func Worker(ctx context.Context, cfg *config.WorkerConfig, worker *workerpkg.Wor
 	r := mux.NewRouter()
 
 	r.Use(middleware.RequestID())
+	r.Use(middleware.Observe("worker"))
 
-	// Install trace, logger, recovery, and internal auth here.
+	// Add internal auth here when the worker is not isolated by network.
 	controller := workercontroller.New(worker, renderer)
 
 	r.Handle("/health", controller.HandleHealth()).Methods(http.MethodGet)

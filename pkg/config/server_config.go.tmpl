@@ -13,6 +13,10 @@ type ServerConfig struct {
 	DevMode         bool          `env:"DEV_MODE, default=false"`
 	DatabaseURL     string        `env:"DATABASE_URL, required"`
 	ShutdownTimeout time.Duration `env:"SHUTDOWN_TIMEOUT, default=10s"`
+	CookieHashKey   string        `env:"COOKIE_HASH_KEY, required"`
+	CookieBlockKey  string        `env:"COOKIE_BLOCK_KEY, required"`
+	CookieDomain    string        `env:"COOKIE_DOMAIN, default=localhost"`
+	SessionDuration time.Duration `env:"SESSION_DURATION, default=20h"`
 }
 
 type Duration = time.Duration
@@ -37,6 +41,15 @@ func (c *ServerConfig) Validate() error {
 	}
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("shutdown timeout must be positive")
+	}
+	if c.CookieHashKey == "" {
+		return fmt.Errorf("cookie hash key is required")
+	}
+	if c.CookieBlockKey == "" {
+		return fmt.Errorf("cookie block key is required")
+	}
+	if c.SessionDuration <= 0 {
+		return fmt.Errorf("session duration must be positive")
 	}
 	return nil
 }

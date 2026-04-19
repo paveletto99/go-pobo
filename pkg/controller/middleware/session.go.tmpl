@@ -1,0 +1,29 @@
+package middleware
+
+import (
+	"net/http"
+
+	"example.com/my-project/pkg/controller"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
+)
+
+func RequireSession(store sessions.Store, name string) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			session, err := store.Get(r, name)
+			if err != nil {
+				session, _ = store.New(r, name)
+			}
+
+			ctx := controller.WithSession(r.Context(), session)
+			r = r.Clone(ctx)
+
+			next.ServeHTTP(w, r)
+
+			if session := controller.SessionFromContext(r.Context()); session != nil {
+				_ = session.Save(r, w)
+			}
+		})
+	}
+}

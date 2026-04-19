@@ -1,0 +1,19 @@
+package rbac
+
+type Permission uint64
+
+const (
+	ViewExample Permission = 1 << iota
+	ManageExample
+)
+
+func Can(given Permission, target Permission) bool {
+	return given&target == target
+}
+
+func AddImplied(target Permission) Permission {
+	if Can(target, ManageExample) {
+		target |= ViewExample
+	}
+	return target
+}

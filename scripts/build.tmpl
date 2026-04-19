@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+set -eEuo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
+
+if [[ -z "${PROJECT_ID:-}" ]]; then
+  echo "Missing PROJECT_ID" >&2
+  exit 1
+fi
+
+if [[ -z "${SERVICE:-}" ]]; then
+  echo "Missing SERVICE" >&2
+  exit 1
+fi
+
+TAG="${TAG:-$(git -C "${ROOT}" describe --dirty --always 2>/dev/null || echo dev)}"
+IMAGE="${IMAGE:-gcr.io/${PROJECT_ID}/my-project/${SERVICE}}"
+
+SUBS="_GO_TAGS=${GO_TAGS:-},_IMAGE=${IMAGE},_SERVICE=${SERVICE},_TAG=${TAG}"
+
+gcloud builds submit "${ROOT}" \
+  --project "${PROJECT_ID}" \
+  --config "${ROOT}/builders/build.yaml" \
+  --substitutions "${SUBS}"

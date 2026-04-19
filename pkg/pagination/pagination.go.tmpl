@@ -1,0 +1,64 @@
+package pagination
+
+import (
+	"fmt"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+)
+
+const (
+	QueryKeyPage  = "page"
+	QueryKeyLimit = "limit"
+	DefaultLimit  = uint64(24)
+	MaxLimit      = uint64(100)
+)
+
+type PageParams struct {
+	Page  uint64
+	Limit uint64
+}
+
+func FromRequest(r *http.Request) (*PageParams, error) {
+	page := uint64(1)
+	if value := strings.TrimSpace(r.FormValue(QueryKeyPage)); value != "" {
+		parsed, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse page: %w", err)
+		}
+		page = parsed
+	}
+
+	limit := DefaultLimit
+	if value := strings.TrimSpace(r.FormValue(QueryKeyLimit)); value != "" {
+		parsed, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse limit: %w", err)
+		}
+		limit = parsed
+	}
+
+	if limit > MaxLimit {
+		limit = MaxLimit
+	}
+
+	return &PageParams{Page: page, Limit: limit}, nil
+}
+
+func Link(rawURL string, page uint64) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+
+	query := parsed.Query()
+	if page <= 1 {
+		query.Del(QueryKeyPage)
+	} else {
+		query.Set(QueryKeyPage, strconv.FormatUint(page, 10))
+	}
+	parsed.RawQuery = query.Encode()
+
+	return parsed.String(), nil
+}

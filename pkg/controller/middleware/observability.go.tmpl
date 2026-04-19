@@ -1,0 +1,20 @@
+package middleware
+
+import (
+	"net/http"
+	"time"
+
+	"example.com/my-project/pkg/observability"
+	"github.com/gorilla/mux"
+)
+
+func Observe(service string) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := observability.WithServiceName(r.Context(), service)
+			ctx = observability.WithRequestStart(ctx, time.Now())
+			w.Header().Set("X-Service-Name", service)
+			next.ServeHTTP(w, r.Clone(ctx))
+		})
+	}
+}

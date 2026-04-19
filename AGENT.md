@@ -5,6 +5,10 @@ Default expectations:
 - Keep process startup thin in `cmd/*` and move setup into `realMain(ctx)`.
 - Put route composition in `internal/routes`.
 - Put controllers and middleware in `pkg/controller` and `pkg/controller/middleware`.
+- Keep observability helpers in `pkg/observability` and define feature metrics close to the owning package.
+- Keep RBAC primitives in `pkg/rbac` and permission context/middleware in `pkg/controller`.
+- Keep cookie and session store code in `pkg/cookiestore`.
+- Keep shared pagination helpers in `pkg/pagination`.
 - Keep worker logic in `pkg/worker`; keep HTTP-triggered worker endpoints thin.
 - Use constructor injection for controllers, workers, and infrastructure dependencies.
 - Use `context.Context` for request-scoped and blocking operations.

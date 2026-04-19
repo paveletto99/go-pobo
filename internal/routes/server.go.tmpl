@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"example.com/my-project/pkg/cookiestore"
 	"example.com/my-project/pkg/config"
 	controllerexample "example.com/my-project/pkg/controller/example"
 	"example.com/my-project/pkg/controller/middleware"
@@ -14,19 +15,21 @@ import (
 
 func Server(ctx context.Context, cfg *config.ServerConfig, db *database.Database, renderer *render.Renderer) (http.Handler, error) {
 	_ = ctx
-	_ = cfg
 
 	r := mux.NewRouter()
 
 	r.Use(middleware.RequestID())
+	r.Use(middleware.Observe("server"))
 
-	// Install trace, logger, recovery, auth, and rate-limit middleware here.
 	controller := controllerexample.New(db, renderer)
+	store := cookiestore.New([]byte(cfg.CookieHashKey), []byte(cfg.CookieBlockKey), cfg.CookieDomain, cfg.SessionDuration, !cfg.DevMode)
 
 	r.Handle("/health", controller.HandleHealth()).Methods(http.MethodGet)
 
 	api := r.PathPrefix("/api").Subrouter()
+	api.Use(middleware.RequireSession(store, "app-session"))
 	api.Handle("/example", controller.HandleShow()).Methods(http.MethodGet)
+	api.Handle("/examples", controller.HandleList()).Methods(http.MethodGet)
 
 	return r, nil
 }

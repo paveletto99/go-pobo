@@ -13,6 +13,7 @@ The files use a `.tmpl` suffix so they do not participate in the current workspa
 
 ```text
 examples/new-project-template/
+├── AGENT.md
 ├── .env.example
 ├── README.md
 ├── builders/build.yaml.tmpl
@@ -26,16 +27,25 @@ examples/new-project-template/
 ├── internal/routes/server.go.tmpl
 ├── internal/routes/worker.go.tmpl
 ├── pkg/cache/cache.go.tmpl
+├── pkg/cookiestore/cookiestore.go.tmpl
 ├── pkg/config/adminapi_config.go.tmpl
 ├── pkg/config/server_config.go.tmpl
 ├── pkg/config/worker_config.go.tmpl
+├── pkg/controller/context.go.tmpl
 ├── pkg/controller/admin/controller.go.tmpl
 ├── pkg/controller/example/controller.go.tmpl
+├── pkg/controller/example/metrics.go.tmpl
 ├── pkg/controller/example/controller_test.go.tmpl
+├── pkg/controller/middleware/observability.go.tmpl
+├── pkg/controller/middleware/require_permission.go.tmpl
 ├── pkg/controller/middleware/request_id.go.tmpl
+├── pkg/controller/middleware/session.go.tmpl
 ├── pkg/controller/worker/controller.go.tmpl
 ├── pkg/database/database.go.tmpl
+├── pkg/observability/observability.go.tmpl
+├── pkg/pagination/pagination.go.tmpl
 ├── pkg/render/renderer.go.tmpl
+├── pkg/rbac/rbac.go.tmpl
 ├── pkg/worker/example/worker.go.tmpl
 ├── scripts/build.tmpl
 ├── terraform/locals.tf.tmpl
@@ -50,9 +60,14 @@ examples/new-project-template/
 - a thin `cmd/server` entrypoint with `realMain(ctx)`
 - a thin `cmd/adminapi` entrypoint for JSON/admin surfaces
 - a thin `cmd/worker` entrypoint for scheduled or internal jobs
+- an `AGENT.md` with repo-local coding guidance for future changes
 - route assembly in `internal/routes`
 - constructor-injected controllers in `pkg/controller`
+- context helpers for sessions and permissions in `pkg/controller/context`
 - a sample request ID middleware in `pkg/controller/middleware`
+- observability and session middleware seams in `pkg/controller/middleware`
+- cookie store, RBAC, pagination, and observability packages under `pkg/`
+- example-local metrics definitions close to the owning controller
 - a reusable worker stub in `pkg/worker`
 - a minimal `internal/envstest` harness and example test
 - typed environment config in `pkg/config`
@@ -60,6 +75,18 @@ examples/new-project-template/
 - explicit infrastructure stubs for database, cache, render, and Terraform
 
 This is intentionally minimal. It shows the seams to start from scratch without pretending to be a finished service.
+
+## Topic Packages
+
+This scaffold now includes starter files for the same cross-cutting topics that show up repeatedly in this repository:
+
+- observability
+- RBAC
+- metrics
+- pagination
+- cookie and session handling
+
+The server route example wires observability and cookie-backed sessions directly so those files show a real integration path instead of standing alone as unused placeholders.
 
 ## Build And Package
 

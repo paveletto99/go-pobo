@@ -1,0 +1,33 @@
+package controller
+
+import (
+	"context"
+
+	"example.com/my-project/pkg/rbac"
+	"github.com/gorilla/sessions"
+)
+
+type contextKey string
+
+const (
+	sessionKey     contextKey = "session"
+	permissionsKey contextKey = "permissions"
+)
+
+func WithSession(ctx context.Context, session *sessions.Session) context.Context {
+	return context.WithValue(ctx, sessionKey, session)
+}
+
+func SessionFromContext(ctx context.Context) *sessions.Session {
+	value, _ := ctx.Value(sessionKey).(*sessions.Session)
+	return value
+}
+
+func WithPermissions(ctx context.Context, permissions rbac.Permission) context.Context {
+	return context.WithValue(ctx, permissionsKey, permissions)
+}
+
+func PermissionsFromContext(ctx context.Context) rbac.Permission {
+	value, _ := ctx.Value(permissionsKey).(rbac.Permission)
+	return value
+}

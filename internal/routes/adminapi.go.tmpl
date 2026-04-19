@@ -19,8 +19,10 @@ func AdminAPI(ctx context.Context, cfg *config.AdminAPIConfig, db *database.Data
 	r := mux.NewRouter()
 
 	r.Use(middleware.RequestID())
+	r.Use(middleware.Observe("adminapi"))
 
-	// Install trace, logger, recovery, API key auth, and rate limiting here.
+	// Add API key auth and middleware.RequirePermission(...) here once auth
+	// writes permissions into request context.
 	controller := admincontroller.New(db, renderer)
 
 	r.Handle("/health", controller.HandleHealth()).Methods(http.MethodGet)
