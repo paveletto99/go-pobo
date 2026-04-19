@@ -1,22 +1,81 @@
 package example
 
 import (
-	"expvar"
+	"context"
+	"fmt"
+	"sync"
 	"time"
 
 	"example.com/my-project/pkg/observability"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var (
-	exampleRequestCount  = expvar.NewInt(observability.MetricRoot + "_example_requests_total")
-	exampleRequestErrors = expvar.NewInt(observability.MetricRoot + "_example_request_errors_total")
-	exampleLatencyMs     = expvar.NewMap(observability.MetricRoot + "_example_request_latency_ms")
+	exampleMetricsOnce sync.Once
+	exampleMetricsSet  *exampleMetrics
+	exampleMetricsErr  error
 )
 
-func RecordExampleRequest(latency time.Duration, result string) {
-	exampleRequestCount.Add(1)
-	exampleLatencyMs.Add(result, latency.Milliseconds())
+type exampleMetrics struct {
+	requestCount  metric.Int64Counter
+	requestErrors metric.Int64Counter
+	requestTimeMs metric.Float64Histogram
+}
+
+func RecordExampleRequest(ctx context.Context, latency time.Duration, result string) {
+	metrics := loadExampleMetrics()
+	attrs := metric.WithAttributes(attribute.String("result", result))
+
+	metrics.requestCount.Add(ctx, 1, attrs)
+	metrics.requestTimeMs.Record(ctx, float64(latency)/float64(time.Millisecond), attrs)
 	if result != "ok" {
-		exampleRequestErrors.Add(1)
+		metrics.requestErrors.Add(ctx, 1, attrs)
 	}
+}
+
+func loadExampleMetrics() *exampleMetrics {
+	exampleMetricsOnce.Do(func() {
+		meter := observability.Meter("example.com/my-project/pkg/controller/example")
+		exampleMetricsSet, exampleMetricsErr = buildExampleMetrics(meter)
+	})
+	if exampleMetricsErr != nil {
+		panic(exampleMetricsErr)
+	}
+	return exampleMetricsSet
+}
+
+func buildExampleMetrics(meter metric.Meter) (*exampleMetrics, error) {
+	requestCount, err := meter.Int64Counter(
+		"example.request.count",
+		metric.WithDescription("Total requests handled by the example controller."),
+		metric.WithUnit("{request}"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create request counter: %w", err)
+	}
+
+	requestErrors, err := meter.Int64Counter(
+		"example.request.errors",
+		metric.WithDescription("Failed requests handled by the example controller."),
+		metric.WithUnit("{request}"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create error counter: %w", err)
+	}
+
+	requestTimeMs, err := meter.Float64Histogram(
+		"example.request.duration",
+		metric.WithDescription("Latency for example controller requests."),
+		metric.WithUnit("ms"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create duration histogram: %w", err)
+	}
+
+	return &exampleMetrics{
+		requestCount:  requestCount,
+		requestErrors: requestErrors,
+		requestTimeMs: requestTimeMs,
+	}, nil
 }

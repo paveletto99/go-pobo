@@ -2,32 +2,137 @@ package observability
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log/slog"
 	"time"
+
+	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"go.opentelemetry.io/contrib/exporters/autoexport"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
-const MetricRoot = "my-project"
+const shutdownTimeout = 5 * time.Second
 
-type contextKey string
-
-const (
-	serviceNameKey  contextKey = "service_name"
-	requestStartKey contextKey = "request_start"
-)
-
-func WithServiceName(ctx context.Context, service string) context.Context {
-	return context.WithValue(ctx, serviceNameKey, service)
+type Telemetry struct {
+	Logger         *slog.Logger
+	loggerProvider *sdklog.LoggerProvider
+	meterProvider  *sdkmetric.MeterProvider
+	tracerProvider *sdktrace.TracerProvider
 }
 
-func ServiceNameFromContext(ctx context.Context) string {
-	value, _ := ctx.Value(serviceNameKey).(string)
-	return value
+func Setup(ctx context.Context, serviceName string) (*Telemetry, error) {
+	res, err := newResource(ctx, serviceName)
+	if err != nil {
+		return nil, fmt.Errorf("build resource: %w", err)
+	}
+
+	spanExporter, err := autoexport.NewSpanExporter(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create span exporter: %w", err)
+	}
+
+	metricReader, err := autoexport.NewMetricReader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create metric reader: %w", err)
+	}
+
+	logExporter, err := autoexport.NewLogExporter(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create log exporter: %w", err)
+	}
+
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithResource(res),
+		sdktrace.WithBatcher(spanExporter),
+	)
+	meterProvider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(metricReader),
+	)
+	loggerProvider := sdklog.NewLoggerProvider(
+		sdklog.WithResource(res),
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
+	)
+
+	otel.SetTracerProvider(tracerProvider)
+	otel.SetMeterProvider(meterProvider)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
+
+	logger := otelslog.NewLogger(
+		serviceName,
+		otelslog.WithLoggerProvider(loggerProvider),
+		otelslog.WithSource(true),
+	)
+	slog.SetDefault(logger)
+
+	return &Telemetry{
+		Logger:         logger,
+		loggerProvider: loggerProvider,
+		meterProvider:  meterProvider,
+		tracerProvider: tracerProvider,
+	}, nil
 }
 
-func WithRequestStart(ctx context.Context, started time.Time) context.Context {
-	return context.WithValue(ctx, requestStartKey, started)
+func (t *Telemetry) Shutdown(ctx context.Context) error {
+	if t == nil {
+		return nil
+	}
+
+	if _, ok := ctx.Deadline(); !ok {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		ctx = shutdownCtx
+	}
+
+	var err error
+	if t.loggerProvider != nil {
+		err = errors.Join(err, t.loggerProvider.Shutdown(ctx))
+	}
+	if t.meterProvider != nil {
+		err = errors.Join(err, t.meterProvider.Shutdown(ctx))
+	}
+	if t.tracerProvider != nil {
+		err = errors.Join(err, t.tracerProvider.Shutdown(ctx))
+	}
+	return err
 }
 
-func RequestStartFromContext(ctx context.Context) time.Time {
-	value, _ := ctx.Value(requestStartKey).(time.Time)
-	return value
+func Meter(name string) metric.Meter {
+	return otel.GetMeterProvider().Meter(name)
+}
+
+func Tracer(name string) trace.Tracer {
+	return otel.GetTracerProvider().Tracer(name)
+}
+
+func newResource(ctx context.Context, serviceName string) (*resource.Resource, error) {
+	res, err := resource.New(
+		ctx,
+		resource.WithFromEnv(),
+		resource.WithHost(),
+		resource.WithTelemetrySDK(),
+		resource.WithProcessExecutableName(),
+		resource.WithProcessPID(),
+		resource.WithProcessRuntimeName(),
+		resource.WithProcessRuntimeVersion(),
+		resource.WithAttributes(
+			attribute.String("service.name", serviceName),
+		),
+	)
+	if err != nil && res == nil {
+		return nil, err
+	}
+	return res, nil
 }

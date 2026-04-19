@@ -1,6 +1,7 @@
 package example
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -22,6 +23,7 @@ func New(db *database.Database, renderer *render.Renderer) *Controller {
 func (c *Controller) HandleHealth() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := c.db.Ping(r.Context()); err != nil {
+			slog.Default().ErrorContext(r.Context(), "database health check failed", "error", err)
 			_ = c.renderer.JSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unhealthy"})
 			return
 		}
@@ -41,7 +43,8 @@ func (c *Controller) HandleShow() http.Handler {
 			session.Values["views"] = views
 		}
 
-		RecordExampleRequest(time.Since(started), "ok")
+		slog.Default().InfoContext(r.Context(), "served example response", "views", views)
+		RecordExampleRequest(r.Context(), time.Since(started), "ok")
 		_ = c.renderer.JSON(w, http.StatusOK, map[string]interface{}{
 			"message": "fill in your handler here",
 			"views":   views,
@@ -55,12 +58,14 @@ func (c *Controller) HandleList() http.Handler {
 
 		params, err := pagination.FromRequest(r)
 		if err != nil {
-			RecordExampleRequest(time.Since(started), "bad_request")
+			slog.Default().WarnContext(r.Context(), "invalid pagination parameters", "error", err)
+			RecordExampleRequest(r.Context(), time.Since(started), "bad_request")
 			_ = c.renderer.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}
 
-		RecordExampleRequest(time.Since(started), "ok")
+		slog.Default().InfoContext(r.Context(), "listed example items", "page", params.Page, "limit", params.Limit)
+		RecordExampleRequest(r.Context(), time.Since(started), "ok")
 		_ = c.renderer.JSON(w, http.StatusOK, map[string]interface{}{
 			"items": []string{"first", "second"},
 			"page":  params.Page,

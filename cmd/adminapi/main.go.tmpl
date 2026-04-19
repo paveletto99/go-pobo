@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -13,19 +14,41 @@ import (
 	"example.com/my-project/internal/routes"
 	"example.com/my-project/pkg/config"
 	"example.com/my-project/pkg/database"
+	"example.com/my-project/pkg/observability"
 	"example.com/my-project/pkg/render"
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	if err := realMain(ctx); err != nil {
-		log.Fatal(err)
+	telemetry, err := observability.Setup(ctx, "adminapi")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, fmt.Errorf("setup observability: %w", err))
+		return 1
 	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := telemetry.Shutdown(shutdownCtx); err != nil {
+			fmt.Fprintln(os.Stderr, fmt.Errorf("shutdown observability: %w", err))
+		}
+	}()
+
+	logger := telemetry.Logger.With("component", "cmd/adminapi")
+	if err := realMain(ctx, logger); err != nil {
+		logger.ErrorContext(ctx, "admin api exited with error", "error", err)
+		return 1
+	}
+
+	return 0
 }
 
-func realMain(ctx context.Context) error {
+func realMain(ctx context.Context, logger *slog.Logger) error {
 	cfg, err := config.NewAdminAPIConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load admin api config: %w", err)
@@ -43,6 +66,8 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("build admin api routes: %w", err)
 	}
+
+	logger.InfoContext(ctx, "starting admin api", "port", cfg.Port)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -62,6 +87,8 @@ func realMain(ctx context.Context) error {
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serve admin api: %w", err)
 	}
+
+	logger.InfoContext(ctx, "admin api stopped")
 
 	return nil
 }

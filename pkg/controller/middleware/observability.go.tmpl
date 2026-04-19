@@ -1,20 +1,114 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
 	"example.com/my-project/pkg/observability"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
+type httpMetrics struct {
+	requestCount    metric.Int64Counter
+	requestDuration metric.Float64Histogram
+}
+
 func Observe(service string) mux.MiddlewareFunc {
+	tracer := observability.Tracer("example.com/my-project/pkg/controller/middleware")
+	metrics := newHTTPMetrics(service)
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := observability.WithServiceName(r.Context(), service)
-			ctx = observability.WithRequestStart(ctx, time.Now())
+			ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+			started := time.Now()
+			route := routeTemplate(r)
+
+			attrs := []attribute.KeyValue{
+				attribute.String("service.name", service),
+				attribute.String("http.method", r.Method),
+				attribute.String("http.route", route),
+			}
+			if requestID := r.Header.Get(requestIDHeader); requestID != "" {
+				attrs = append(attrs, attribute.String("http.request_id", requestID))
+			}
+
+			ctx, span := tracer.Start(
+				ctx,
+				r.Method+" "+route,
+				trace.WithSpanKind(trace.SpanKindServer),
+				trace.WithAttributes(attrs...),
+			)
+			defer span.End()
+
+			recorder := &statusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
 			w.Header().Set("X-Service-Name", service)
-			next.ServeHTTP(w, r.Clone(ctx))
+			next.ServeHTTP(recorder, r.Clone(ctx))
+
+			resultAttrs := append(attrs, attribute.Int("http.status_code", recorder.statusCode))
+			metrics.requestCount.Add(ctx, 1, metric.WithAttributes(resultAttrs...))
+			metrics.requestDuration.Record(
+				ctx,
+				float64(time.Since(started))/float64(time.Millisecond),
+				metric.WithAttributes(resultAttrs...),
+			)
+
+			span.SetAttributes(resultAttrs...)
+			if recorder.statusCode >= http.StatusInternalServerError {
+				span.SetStatus(codes.Error, http.StatusText(recorder.statusCode))
+			}
 		})
 	}
+}
+
+func newHTTPMetrics(service string) httpMetrics {
+	meter := observability.Meter("example.com/my-project/pkg/controller/middleware/" + service)
+
+	requestCount, err := meter.Int64Counter(
+		"http.server.request.count",
+		metric.WithDescription("Total inbound HTTP requests handled by the service."),
+		metric.WithUnit("{request}"),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("create request counter: %v", err))
+	}
+
+	requestDuration, err := meter.Float64Histogram(
+		"http.server.request.duration",
+		metric.WithDescription("End-to-end HTTP request duration."),
+		metric.WithUnit("ms"),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("create request duration histogram: %v", err))
+	}
+
+	return httpMetrics{
+		requestCount:    requestCount,
+		requestDuration: requestDuration,
+	}
+}
+
+func routeTemplate(r *http.Request) string {
+	if route := mux.CurrentRoute(r); route != nil {
+		if template, err := route.GetPathTemplate(); err == nil && template != "" {
+			return template
+		}
+	}
+	return r.URL.Path
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (r *statusRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+	r.ResponseWriter.WriteHeader(statusCode)
 }

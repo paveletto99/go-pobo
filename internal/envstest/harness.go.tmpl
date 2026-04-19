@@ -17,7 +17,6 @@ type Harness struct {
 
 func New(tb testing.TB) *Harness {
 	tb.Helper()
-
 	db, err := database.Open(context.Background(), "test://database")
 	if err != nil {
 		tb.Fatalf("open test database: %v", err)

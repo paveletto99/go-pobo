@@ -1,11 +1,12 @@
 # Local Development
 
 1. Copy `.env.example` to `.env` and fill in real values.
-2. Start local dependencies such as the database and cache.
-3. Run migrations and seed data if the service needs them.
-4. Start the server with `go run ./cmd/server`.
-5. Build the Linux binary with `mkdir -p bin && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o ./bin/server ./cmd/server`.
-6. Package the service with `docker build --file builders/service.dockerfile --build-arg SERVICE=server --tag my-project/server:dev .`.
-7. For remote builds, set `PROJECT_ID` and run `./scripts/build`.
+2. Start local dependencies such as the database, cache, and an OTEL collector listening on `:4318`.
+3. If the service runs on your host, keep `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`; if it runs in Docker Compose or Kubernetes, change it to `http://otel-collector:4318`.
+4. Run migrations and seed data if the service needs them.
+5. Start the server with `go run ./cmd/server`.
+6. Build the Linux binary with `mkdir -p bin && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o ./bin/server ./cmd/server`.
+7. Package the service with `docker build --file builders/service.dockerfile --build-arg SERVICE=server --tag my-project/server:dev .`.
+8. For remote builds, set `PROJECT_ID` and run `./scripts/build`.
 
 Add service-specific setup steps here as the project grows.
