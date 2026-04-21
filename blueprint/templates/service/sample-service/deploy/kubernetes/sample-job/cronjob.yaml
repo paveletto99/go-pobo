@@ -1,0 +1,34 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sample-job
+  labels:
+    app.kubernetes.io/name: sample-job
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: sample-job
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: sample-job
+            image: sample-job:dev
+            imagePullPolicy: IfNotPresent
+            envFrom:
+            - configMapRef:
+                name: sample-job-env
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                cpu: 250m
+                memory: 128Mi

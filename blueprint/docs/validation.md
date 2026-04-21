@@ -66,3 +66,38 @@ Open assumptions:
 
 - Custom metrics stay feature-local and rely on the shared `pkg/observability` OTel provider initialized by `internal/setup`.
 - Attribute sets remain intentionally low-cardinality; future services should add dimensions only when the value set is bounded.
+
+## 2026-04-21 SRE Alerting Extraction
+
+Validated:
+
+- Extracted alerting intent from `terraform/alerting` into `blueprint/docs/sre-alerting-sli-extraction.md`.
+- Checked sample-service metrics against the extracted API SLI signals.
+
+Open assumptions:
+
+- The starter remains an HTTP API example, so scheduled-job forward-progress metrics are documented but not implemented in sample-service.
+- Concrete alert rules depend on the target backend after the OTel Collector. The blueprint preserves the SRE semantics but does not force a specific Prometheus, Cloud Monitoring, or vendor query language.
+
+## 2026-04-21 Alert Templates And Job Metrics
+
+Validated:
+
+- `go test ./...` inside `blueprint/templates/service/sample-service`: passed.
+- `go list ./...` inside `blueprint/templates/service/sample-service`: passed.
+- `go build ./cmd/sample-job ./cmd/sample-service` inside `blueprint/templates/service/sample-service`: passed.
+- `go test ./cmd/sample-job ./internal/jobs/samplejob`: passed.
+- `make yaml-check` under `blueprint`: passed. Ruby reported the existing local `ffi` extension warning, but YAML parsing completed successfully.
+- Alert YAML parsed with Ruby YAML for `backend-neutral-alerts.yaml` and Prometheus `alert-rules.yaml`: passed.
+- Grafana dashboard JSON parsed with Ruby JSON: passed.
+- `kubectl kustomize blueprint/templates/service/sample-service/deploy/kubernetes/sample-job`: passed.
+
+Open assumptions:
+
+- Prometheus examples assume OTel metrics are exported with Prometheus-style names such as `sample_item_requests_total`.
+- Grafana examples assume a Prometheus datasource named `Prometheus`.
+
+Not validated locally:
+
+- `promtool check rules`: not run because `promtool` is not installed in this environment.
+- `skaffold render`: not run because `skaffold` is not installed in this environment.

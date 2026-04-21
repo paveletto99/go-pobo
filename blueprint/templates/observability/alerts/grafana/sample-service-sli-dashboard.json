@@ -1,0 +1,251 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "targets": [
+        {
+          "expr": "sum by (operation) (rate(sample_item_requests_total[5m]))",
+          "legendFormat": "{{operation}}"
+        }
+      ],
+      "title": "API request rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "sum(rate(sample_item_errors_total[5m])) / clamp_min(sum(rate(sample_item_requests_total[5m])), 0.001)",
+          "legendFormat": "error ratio"
+        }
+      ],
+      "title": "API error ratio",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, operation) (rate(sample_item_handler_duration_bucket[5m])))",
+          "legendFormat": "p95 {{operation}}"
+        }
+      ],
+      "title": "Handler p95 latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "sum(rate(sample_item_created_total[5m]))",
+          "legendFormat": "created"
+        }
+      ],
+      "title": "Item creation throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(sample_item_lookup_total[5m]))",
+          "legendFormat": "{{result}}"
+        }
+      ],
+      "title": "Lookup results",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "id": 6,
+      "targets": [
+        {
+          "expr": "increase(sample_job_success_total{job_name=\"sample-job\"}[30m])",
+          "legendFormat": "successes in 30m"
+        }
+      ],
+      "title": "Sample job forward progress",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 16
+      },
+      "id": 7,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, result) (rate(sample_job_duration_bucket{job_name=\"sample-job\"}[30m])))",
+          "legendFormat": "p95 {{result}}"
+        }
+      ],
+      "title": "Sample job duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 16
+      },
+      "id": 8,
+      "targets": [
+        {
+          "expr": "sum(rate(otelcol_exporter_send_failed_metric_points[5m]))",
+          "legendFormat": "metric export failures"
+        },
+        {
+          "expr": "sum(rate(otelcol_exporter_send_failed_spans[5m]))",
+          "legendFormat": "span export failures"
+        }
+      ],
+      "title": "Collector export failures",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 16
+      },
+      "id": 9,
+      "targets": [
+        {
+          "expr": "avg_over_time(probe_success{service=\"sample-service\"}[5m])",
+          "legendFormat": "probe success"
+        }
+      ],
+      "title": "External probe success",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "blueprint",
+    "sli",
+    "sample-service"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Sample Service SLI",
+  "uid": "sample-service-sli",
+  "version": 1,
+  "weekStart": ""
+}

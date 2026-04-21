@@ -1,0 +1,108 @@
+groups:
+  - name: sample-service-api-sli
+    interval: 1m
+    rules:
+      - alert: SampleServiceHostDown
+        expr: avg_over_time(probe_success{service="sample-service"}[1m]) < 0.2
+        for: 1m
+        labels:
+          severity: page
+          slo: api-availability
+        annotations:
+          summary: "sample-service external health check is failing"
+          description: "The external /health probe pass fraction is below 20% for 1 minute."
+          runbook: "blueprint/docs/runbook.md"
+
+      - alert: SampleServiceHighErrorRatio
+        expr: |
+          (
+            sum(rate(sample_item_errors_total[5m]))
+            /
+            clamp_min(sum(rate(sample_item_requests_total[5m])), 0.001)
+          ) > 0.05
+          and
+          sum(rate(sample_item_requests_total[5m])) > 0.01
+        for: 10m
+        labels:
+          severity: page
+          slo: api-availability
+        annotations:
+          summary: "sample-service API error ratio is high"
+          description: "More than 5% of item requests are ending in bounded error categories."
+          runbook: "blueprint/docs/runbook.md"
+
+      - alert: SampleServiceHighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le, operation) (rate(sample_item_handler_duration_bucket[5m]))
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: ticket
+          slo: api-latency
+        annotations:
+          summary: "sample-service item handler p95 latency is high"
+          description: "p95 handler latency is above 500ms for at least 10 minutes."
+          runbook: "blueprint/docs/runbook.md"
+
+  - name: sample-service-job-forward-progress
+    interval: 1m
+    rules:
+      - alert: SampleJobForwardProgressNoSuccess
+        expr: increase(sample_job_success_total{job_name="sample-job"}[30m]) < 1
+        for: 5m
+        labels:
+          severity: page
+          slo: scheduled-job-forward-progress
+        annotations:
+          summary: "sample-job has not completed successfully"
+          description: "No successful sample-job completion was observed in the forward-progress window."
+          runbook: "blueprint/docs/runbook.md"
+
+      - alert: SampleJobForwardProgressTelemetryAbsent
+        expr: absent_over_time(sample_job_success_total{job_name="sample-job"}[30m])
+        for: 5m
+        labels:
+          severity: page
+          slo: scheduled-job-forward-progress
+        annotations:
+          summary: "sample-job success metric is absent"
+          description: "The sample-job success metric is missing for the forward-progress window."
+          runbook: "blueprint/docs/runbook.md"
+
+      - alert: SampleJobHighFailureRate
+        expr: sum(rate(sample_job_errors_total{job_name="sample-job"}[15m])) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          slo: scheduled-job-forward-progress
+        annotations:
+          summary: "sample-job is reporting failures"
+          description: "The sample-job error counter has increased during the last 15 minutes."
+          runbook: "blueprint/docs/runbook.md"
+
+  - name: otel-collector-pipeline-health
+    interval: 1m
+    rules:
+      - alert: OTelCollectorMetricExportFailed
+        expr: sum(rate(otelcol_exporter_send_failed_metric_points[5m])) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          slo: telemetry-pipeline
+        annotations:
+          summary: "OpenTelemetry Collector is failing to export metric points"
+          description: "Collector metric export failures are sustained. Alerting signals may become stale."
+          runbook: "blueprint/docs/runbook.md"
+
+      - alert: OTelCollectorSpanExportFailed
+        expr: sum(rate(otelcol_exporter_send_failed_spans[5m])) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          slo: telemetry-pipeline
+        annotations:
+          summary: "OpenTelemetry Collector is failing to export spans"
+          description: "Collector span export failures are sustained."
+          runbook: "blueprint/docs/runbook.md"

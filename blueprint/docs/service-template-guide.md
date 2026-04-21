@@ -149,6 +149,14 @@ For each service:
 - point local/dev services at the included `otel-collector` service,
 - keep DB secrets separate from ConfigMap.
 
+For scheduled jobs:
+
+- create a separate `cmd/<job-name>` binary,
+- keep job code under `internal/jobs/<job-name>` or the service-owned package that owns the workflow,
+- build the job with the existing Dockerfile using `--build-arg SERVICE=<job-name>`,
+- deploy it as a separate CronJob or scheduler-invoked service,
+- do not mix job route registration into the HTTP API unless the platform explicitly invokes jobs over HTTP.
+
 ## Add Observability
 
 Preserve the source repo's structure:
@@ -192,6 +200,14 @@ Avoid:
 - item ids, user ids, names, tokens, error strings, and request paths as attributes,
 - process-local Prometheus exporters unless your platform requires them,
 - custom metrics in `pkg/observability`; that package should stay focused on provider/exporter lifecycle.
+
+For scheduled jobs, copy the `internal/jobs/samplejob` pattern:
+
+- emit `<service>.<job>.success` only after durable completion,
+- emit `<service>.<job>.errors` with bounded `reason`,
+- emit `<service>.<job>.duration` in seconds with bounded `result`,
+- emit work-volume counters only for bounded, meaningful outcomes,
+- alert on both missing success and absent success telemetry.
 
 ## Do / Don't
 

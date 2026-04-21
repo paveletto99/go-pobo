@@ -1,0 +1,102 @@
+apiVersion: blueprint.openslo.example/v1
+kind: AlertSkeletonSet
+metadata:
+  name: service-alert-skeletons
+  description: Backend-neutral alert intent extracted from the repository alerting module.
+defaults:
+  evaluationInterval: 1m
+  labels:
+    owner: sre
+    source: blueprint
+  annotations:
+    runbook: "docs/runbook.md"
+slos:
+  - name: api-availability
+    appliesTo: public-http-service
+    objective: "External health checks and HTTP success ratio stay above the service target."
+    sli:
+      goodEvents:
+        - "synthetic /health probe succeeds"
+        - "HTTP request completes without a server-side error"
+      totalEvents:
+        - "synthetic /health probe attempts"
+        - "HTTP request attempts"
+      requiredMetrics:
+        - "probe_success or backend equivalent"
+        - "http.server.request_count or backend equivalent"
+    alerts:
+      - name: HostDown
+        severity: page
+        window: 1m
+        condition: "synthetic health-check pass fraction is below the availability floor"
+      - name: ApiHighErrorRatio
+        severity: page-or-ticket
+        window: 5m
+        condition: "server-side errors divided by requests is above the service threshold"
+  - name: api-latency
+    appliesTo: public-http-service
+    objective: "User-visible request latency stays below the service target."
+    sli:
+      requiredMetrics:
+        - "http.server.duration histogram"
+        - "service-owned handler duration histogram"
+      boundedAttributes:
+        - route
+        - operation
+    alerts:
+      - name: ApiHighLatency
+        severity: ticket-by-default
+        window: 5m
+        condition: "p95 or p99 request duration exceeds the service target"
+  - name: scheduled-job-forward-progress
+    appliesTo: scheduled-or-background-job
+    objective: "The job completes at least once inside its expected progress window."
+    sli:
+      goodEvents:
+        - "job success counter increments after durable completion"
+      requiredMetrics:
+        - "<service>.<job>.success counter"
+        - "<service>.<job>.duration histogram"
+        - "<service>.<job>.errors counter"
+      boundedAttributes:
+        - job_name
+        - result
+        - reason
+    alerts:
+      - name: ForwardProgressNoSuccess
+        severity: page
+        window: "expected_interval * tolerated_missed_runs + execution_slack + scheduling_slack"
+        condition: "success counter increase is less than 1 inside the window"
+      - name: ForwardProgressTelemetryAbsent
+        severity: page
+        window: "same as ForwardProgressNoSuccess"
+        condition: "success counter is absent inside the window"
+  - name: telemetry-pipeline
+    appliesTo: service-with-otel-collector
+    objective: "Telemetry export remains healthy enough for alerting signals to be trusted."
+    sli:
+      requiredMetrics:
+        - "collector exporter send failures"
+        - "collector receiver accepted/refused telemetry"
+    alerts:
+      - name: TelemetryExportFailed
+        severity: ticket
+        window: 15m
+        condition: "Collector exporter failures are sustained"
+labelPolicy:
+  preserve:
+    - operation
+    - route
+    - result
+    - reason
+    - job_name
+    - controlled region or tenant labels when bounded
+  avoid:
+    - ids
+    - names
+    - emails
+    - tokens
+    - request bodies
+    - raw paths
+    - raw error strings
+    - database query text

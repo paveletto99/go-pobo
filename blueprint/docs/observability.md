@@ -73,6 +73,8 @@ The Kubernetes sample sets `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:43
 
 The original repo pattern used OpenCensus metrics and an optional Prometheus endpoint. The starter upgrades the template to OpenTelemetry metrics exported over OTLP/HTTP.
 
+For SRE alerting and dashboard reuse, see `sre-alerting-sli-extraction.md`. The key alerting pattern from the source Terraform is forward progress for scheduled jobs: emit a success counter after durable completion and alert on both no success delta and missing telemetry.
+
 Preserve:
 
 - metrics stay part of shared runtime setup,
@@ -111,9 +113,19 @@ Starter instruments:
 | `sample.item.lookup` | counter | `result` | Counts `found` vs `not_found` lookups. |
 | `sample.item.handler.duration` | histogram | `operation` | Measures handler duration in seconds. |
 
+The starter also includes an optional separate scheduled-job example in `internal/jobs/samplejob`:
+
+| Instrument | Type | Attributes | Purpose |
+| --- | --- | --- | --- |
+| `sample.job.success` | counter | `job_name` | Counts successful job completions after durable work finishes. |
+| `sample.job.errors` | counter | `job_name`, `reason` | Counts bounded job failure categories. |
+| `sample.job.duration` | histogram | `job_name`, `result` | Measures job run duration in seconds. |
+| `sample.job.work.items` | counter | `job_name`, `result` | Counts processed work items. |
+
 Guidance for new services:
 
 - create a small `internal/<service>/metrics.go` with package-private instruments and helper methods,
+- for scheduled jobs, create a separate `internal/jobs/<job>/metrics.go`,
 - instantiate metrics in `NewServer` after config validation and before returning the server,
 - record in handlers for request lifecycle outcomes and in services for durable business events,
 - use counters for monotonic events and histograms for durations or sizes,

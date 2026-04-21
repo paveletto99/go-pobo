@@ -16,6 +16,7 @@ This starter is a runnable extraction of the repository's Go service style:
 - request logs enriched with trace/span ids,
 - `/health`,
 - Dockerfile and Kubernetes manifests.
+- optional separate `sample-job` binary for scheduled-job forward-progress metrics.
 
 Run tests:
 
@@ -27,6 +28,12 @@ Build:
 
 ```sh
 docker build -t sample-service:dev .
+```
+
+Build the optional scheduled-job binary:
+
+```sh
+docker build --build-arg SERVICE=sample-job -t sample-job:dev .
 ```
 
 Local OTel defaults:
@@ -43,3 +50,12 @@ Custom metrics included:
 - `sample.item.created`
 - `sample.item.lookup`
 - `sample.item.handler.duration`
+
+Optional scheduled-job metrics included in `internal/jobs/samplejob`:
+
+- `sample.job.success`
+- `sample.job.errors`
+- `sample.job.duration`
+- `sample.job.work.items`
+
+The job example is intentionally separate from the HTTP service. It can be run as `go run ./cmd/sample-job` or built as a separate container image with `SERVICE=sample-job`.

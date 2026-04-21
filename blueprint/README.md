@@ -21,10 +21,12 @@ This blueprint is an evidence-driven extraction of the Go service architecture i
 - `docs/service-template-guide.md`: practical guide for creating a new service in this style.
 - `docs/observability.md`: logging, metrics, tracing, health, and runtime hooks.
 - `docs/otel-upgrade.md`: OpenTelemetry upgrade notes and low-resource defaults.
+- `docs/sre-alerting-sli-extraction.md`: Terraform alerting intent, reusable SLI/SLO signals, dashboard patterns, and sample-service metric coverage.
 - `docs/config-and-runtime.md`: envconfig, setup, serverenv, ports, shutdown, secrets, and Docker behavior.
 - `docs/testing-and-quality.md`: tests, fakes, database harness, error/validation conventions, and quality gates.
 - `docs/runbook.md`: daily commands and local development flow.
 - `templates/service/sample-service`: a runnable starter module that distills the repository style.
+- `templates/observability/alerts`: backend-neutral alert skeletons plus Prometheus and Grafana examples for the extracted SLIs.
 - `skaffold.yaml` and `deploy/kubernetes/sample-service`: a minimal Skaffold/Kubernetes wrapper for the starter.
 - `scripts/scaffold-service.sh`: copies the starter into a new directory and renames the sample service.
 
@@ -69,3 +71,5 @@ skaffold dev
 ```
 
 The starter is intentionally small, but it preserves the repo's important service shape: constructor-based composition, envconfig config loading, context-aware logging, mux routing, handler/use-case/database flow, `InTx` transaction ownership, health probes, Docker build, Kubernetes manifests, table-driven tests, and OpenTelemetry traces/metrics exported to an OTLP Collector.
+
+It also includes an optional separate scheduled-job example in `templates/service/sample-service/cmd/sample-job` and `internal/jobs/samplejob`. Build it with `docker build --build-arg SERVICE=sample-job -t sample-job:dev templates/service/sample-service` when you need forward-progress job metrics.
