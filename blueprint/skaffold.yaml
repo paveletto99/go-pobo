@@ -1,0 +1,44 @@
+apiVersion: skaffold/v4beta8
+kind: Config
+metadata:
+  name: exposure-notifications-service-blueprint
+build:
+  local:
+    push: false
+  artifacts:
+  - image: sample-service
+    context: templates/service/sample-service
+    docker:
+      dockerfile: Dockerfile
+      buildArgs:
+        SERVICE: sample-service
+    sync:
+      infer:
+      - "**/*.go"
+manifests:
+  kustomize:
+    paths:
+    - deploy/kubernetes/otel-collector
+    - deploy/kubernetes/sample-service
+portForward:
+- resourceType: service
+  resourceName: sample-service
+  port: 80
+  localPort: 8080
+profiles:
+- name: dev
+  activation:
+  - command: dev
+  patches:
+  - op: replace
+    path: /build/local
+    value:
+      push: false
+- name: prod
+  patches:
+  - op: replace
+    path: /build/local
+    value:
+      push: true
+  - op: remove
+    path: /portForward

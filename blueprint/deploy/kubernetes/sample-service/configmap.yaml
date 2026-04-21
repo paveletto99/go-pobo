@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample-service-config
+  labels:
+    app.kubernetes.io/name: sample-service
+data:
+  PORT: "8080"
+  LOG_LEVEL: "INFO"
+  LOG_MODE: "development"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "sample_service"
+  DB_USER: "sample_service"
+  DB_SSLMODE: "disable"
+  MAX_ITEM_NAME_LENGTH: "120"
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: "sample-service"
+  OTEL_SERVICE_VERSION: "dev"
+  OTEL_DEPLOYMENT_ENVIRONMENT: "local"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+  OTEL_EXPORTER_OTLP_TIMEOUT: "5s"
+  OTEL_TRACES_ENABLED: "true"
+  OTEL_TRACE_SAMPLE_RATE: "0.01"
+  OTEL_METRICS_ENABLED: "true"
+  OTEL_METRIC_EXPORT_INTERVAL: "60s"
